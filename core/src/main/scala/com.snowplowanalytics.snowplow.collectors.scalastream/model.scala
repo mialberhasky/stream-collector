@@ -82,6 +82,10 @@ package model {
     enabled: Boolean,
     placeholder: Option[String]
   )
+  final case class RedirectDomainWhitelistConfig(
+    enabled: Boolean,
+    domains: Option[List[String]]
+  )
   final case class RootResponseConfig(
     enabled: Boolean,
     statusCode: Int,
@@ -150,6 +154,7 @@ package model {
     doNotTrackCookie: DoNotTrackCookieConfig,
     cookieBounce: CookieBounceConfig,
     redirectMacro: RedirectMacroConfig,
+    whitelistConfig: RedirectDomainWhitelistConfig,
     rootResponse: RootResponseConfig,
     cors: CORSConfig,
     streams: StreamsConfig,

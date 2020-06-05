@@ -29,6 +29,7 @@ object TestUtils {
     doNotTrackCookie = DoNotTrackCookieConfig(false, "abc", "123"),
     cookieBounce = CookieBounceConfig(false, "bounce", "new-nuid", None),
     redirectMacro = RedirectMacroConfig(false, None),
+    whitelistConfig = RedirectDomainWhitelistConfig(true, Some(List("uiowa.edu", "localhost"))),
     rootResponse = RootResponseConfig(false, 404),
     cors = CORSConfig(-1.seconds),
     streams = StreamsConfig(

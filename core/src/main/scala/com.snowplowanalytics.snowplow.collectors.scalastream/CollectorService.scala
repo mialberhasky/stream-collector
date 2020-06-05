@@ -17,6 +17,7 @@ package com.snowplowanalytics.snowplow.collectors.scalastream
 import java.util.UUID
 
 import scala.collection.JavaConverters._
+import scala.util.control.Breaks._
 
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
@@ -35,6 +36,8 @@ import utils.SplitBatch
  * events
  */
 trait Service {
+  lazy val log = LoggerFactory.getLogger(getClass())
+
   def preflightResponse(req: HttpRequest): HttpResponse
   def flashCrossDomainPolicy: HttpResponse
   def rootResponse: HttpResponse
@@ -137,7 +140,7 @@ class CollectorService(
       )
 
     val (httpResponse, badRedirectResponses) = buildHttpResponse(
-      event, queryParams, headers.toList, redirect, pixelExpected, bounce, config.redirectMacro)
+      event, queryParams, headers.toList, redirect, pixelExpected, bounce, config.redirectMacro, config.whitelistConfig)
     (httpResponse, badRedirectResponses ++ sinkResponses)
   }
 
@@ -240,10 +243,11 @@ class CollectorService(
     redirect: Boolean,
     pixelExpected: Boolean,
     bounce: Boolean,
-    redirectMacroConfig: RedirectMacroConfig
+    redirectMacroConfig: RedirectMacroConfig,
+    whitelistConfig: RedirectDomainWhitelistConfig
   ): (HttpResponse, List[Array[Byte]]) =
     if (redirect) {
-      val (r, l) = buildRedirectHttpResponse(event, queryParams, redirectMacroConfig)
+      val (r, l) = buildRedirectHttpResponse(event, queryParams, redirectMacroConfig, whitelistConfig)
       (r.withHeaders(r.headers ++ headers), l)
     } else {
       (buildUsualHttpResponse(pixelExpected, bounce).withHeaders(headers), Nil)
@@ -264,18 +268,39 @@ class CollectorService(
   def buildRedirectHttpResponse(
     event: CollectorPayload,
     queryParams: Map[String, String],
-    redirectMacroConfig: RedirectMacroConfig
+    redirectMacroConfig: RedirectMacroConfig,
+    whitelistConfig: RedirectDomainWhitelistConfig
   ): (HttpResponse, List[Array[Byte]]) =
     queryParams.get("u") match {
       case Some(target) =>
         val canReplace = redirectMacroConfig.enabled && event.isSetNetworkUserId
         val token = redirectMacroConfig.placeholder.getOrElse(s"$${SP_NUID}")
+        log.info("testing")
         val replacedTarget =
           if (canReplace) target.replaceAllLiterally(token, event.networkUserId)
           else target
-        (HttpResponse(StatusCodes.Found).withHeaders(`RawHeader`("Location", replacedTarget)), Nil)
+        if (validDomain(replacedTarget,  whitelistConfig)) {
+          (HttpResponse(StatusCodes.Found).withHeaders(`RawHeader`("Location", replacedTarget)), Nil)
+        } else {
+          (HttpResponse(StatusCodes.NotFound), Nil)
+        }
+
       case None => (HttpResponse(StatusCodes.BadRequest), Nil)
     }
+
+  def validDomain(host: String, whitelistConfig: RedirectDomainWhitelistConfig): Boolean = {
+    var found = true
+    if (whitelistConfig.enabled) {
+      found = false
+      breakable { for (d <- whitelistConfig.domains.get) {
+        val du = d.toLowerCase
+        val domain = host.toLowerCase().replaceFirst("http(s)?://", "")
+        found = domain.startsWith(du)
+        if (found) break
+      } }
+    }
+    found
+  }
 
   /**
    * Builds a cookie header with the network user id as value.
