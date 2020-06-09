@@ -292,12 +292,17 @@ class CollectorService(
     var found = true
     if (whitelistConfig.enabled) {
       found = false
-      breakable { for (d <- whitelistConfig.domains.get) {
-        val du = d.toLowerCase
-        val domain = host.toLowerCase().replaceFirst("http(s)?://", "")
-        found = domain.startsWith(du)
-        if (found) break
-      } }
+      val domain = host.toLowerCase().replaceFirst("http(s)?://", "")
+      if (domain.contains("uiowa.edu")) found = true
+      if (!found) {
+        breakable {
+          for (d <- whitelistConfig.domains.get) {
+            val du = d.toLowerCase
+            found = domain.startsWith(du)
+            if (found) break
+          }
+        }
+      }
     }
     found
   }
