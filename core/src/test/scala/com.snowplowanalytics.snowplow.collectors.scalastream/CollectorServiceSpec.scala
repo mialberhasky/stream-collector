@@ -255,6 +255,10 @@ class CollectorServiceSpec extends Specification {
         val (res, Nil) = service.buildRedirectHttpResponse(event, Map("u" -> "https://uiowa.edu"), redirConf, whitelistConfig)
         res shouldEqual HttpResponse(302).withHeaders(`RawHeader`("Location", "https://uiowa.edu"))
       }
+      "give back a 404 if redirecting to a domain not on the whitelist even though uiowa.edu is in the URL params" in {
+        val (res, Nil) = service.buildRedirectHttpResponse(event, Map("u" -> "https://alberhasky.com?foo=uiowa.edu"), redirConf, whitelistConfig)
+        res shouldEqual HttpResponse(404)
+      }
       "give back a 404 if redirecting to a domain not on the whitelist" in {
         val (res, Nil) = service.buildRedirectHttpResponse(event, Map("u" -> "https://alberhasky.com"), redirConf, whitelistConfig)
         res shouldEqual HttpResponse(404)

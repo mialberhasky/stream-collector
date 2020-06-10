@@ -275,13 +275,13 @@ class CollectorService(
       case Some(target) =>
         val canReplace = redirectMacroConfig.enabled && event.isSetNetworkUserId
         val token = redirectMacroConfig.placeholder.getOrElse(s"$${SP_NUID}")
-        log.info("testing")
         val replacedTarget =
           if (canReplace) target.replaceAllLiterally(token, event.networkUserId)
           else target
         if (validDomain(replacedTarget,  whitelistConfig)) {
           (HttpResponse(StatusCodes.Found).withHeaders(`RawHeader`("Location", replacedTarget)), Nil)
         } else {
+          log.info("Returned 404 for: " + replacedTarget)
           (HttpResponse(StatusCodes.NotFound), Nil)
         }
 
@@ -292,7 +292,7 @@ class CollectorService(
     var found = true
     if (whitelistConfig.enabled) {
       found = false
-      val domain = host.toLowerCase().replaceFirst("http(s)?://", "")
+      val domain = host.toLowerCase().replaceAll("^(http[s]?://)([\\w\\.\\-]+)(/?[\\S\\s#]*$)", "'$2'")
       if (domain.contains("uiowa.edu")) found = true
       if (!found) {
         breakable {
