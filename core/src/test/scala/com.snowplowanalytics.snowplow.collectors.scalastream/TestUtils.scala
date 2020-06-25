@@ -29,7 +29,7 @@ object TestUtils {
     doNotTrackCookie = DoNotTrackCookieConfig(false, "abc", "123"),
     cookieBounce = CookieBounceConfig(false, "bounce", "new-nuid", None),
     redirectMacro = RedirectMacroConfig(false, None),
-    allowListConfig = RedirectDomainAllowConfig(true, Some(List("localhost", "cnn.com"))),
+    allowListConfig = RedirectDomainAllowConfig(true, Some(List("localhost", "cnn.com", "bit.ly/foobar"))),
     rootResponse = RootResponseConfig(false, 404),
     cors = CORSConfig(-1.seconds),
     streams = StreamsConfig(

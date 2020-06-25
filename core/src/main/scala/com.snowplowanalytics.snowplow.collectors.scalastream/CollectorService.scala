@@ -293,12 +293,13 @@ class CollectorService(
     if (allowListConfig.enabled) {
       found = false
       val domain = host.toLowerCase().replaceAll("^(http[s]?://)([\\w\\.\\-]+)(/?[\\S\\s#]*$)", "$2")
+      val url = host.toLowerCase().replaceAll("^(http[s]?://)([\\w\\.\\-]+)(/?[\\S\\s#]*$)", "$2$3")
       if (domain.contains("uiowa.edu")) found = true
       if (!found) {
         breakable {
           for (d <- allowListConfig.domains.get) {
             val du = d.toLowerCase
-            found = domain.startsWith(du)
+            found = domain.startsWith(du) || url.startsWith(du)
             if (found) break
           }
         }
