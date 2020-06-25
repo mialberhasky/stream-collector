@@ -205,16 +205,16 @@ class CollectorServiceSpec extends Specification {
 
     "buildHttpResponse" in {
       val redirConf = TestUtils.testConf.redirectMacro
-      val whitelistConfig = TestUtils.testConf.whitelistConfig
+      val allowListConfig = TestUtils.testConf.allowListConfig
       "rely on buildRedirectHttpResponse if redirect is true" in {
         val (res, Nil) = service.buildHttpResponse(
-          event, Map("u" -> "12"), hs, true, true, false, redirConf, whitelistConfig.copy(enabled = false))
+          event, Map("u" -> "12"), hs, true, true, false, redirConf, allowListConfig.copy(enabled = false))
         res shouldEqual HttpResponse(302)
           .withHeaders(`RawHeader`("Location", "12") :: hs)
       }
       "send back a gif if pixelExpected is true" in {
         val (res, Nil) = service.buildHttpResponse(
-          event, Map.empty, hs, false, true, false, redirConf, whitelistConfig)
+          event, Map.empty, hs, false, true, false, redirConf, allowListConfig)
         res shouldEqual HttpResponse(200)
           .withHeaders(hs)
           .withEntity(HttpEntity(contentType = ContentType(MediaTypes.`image/gif`),
@@ -222,13 +222,13 @@ class CollectorServiceSpec extends Specification {
       }
       "send back a found if pixelExpected and bounce is true" in {
         val (res, Nil) = service.buildHttpResponse(
-          event, Map.empty, hs, false, true, true, redirConf, whitelistConfig)
+          event, Map.empty, hs, false, true, true, redirConf, allowListConfig)
         res shouldEqual HttpResponse(302)
           .withHeaders(hs)
       }
       "send back ok otherwise" in {
         val (res, Nil) = service.buildHttpResponse(
-          event, Map.empty, hs, false, false, false, redirConf, whitelistConfig)
+          event, Map.empty, hs, false, false, false, redirConf, allowListConfig)
         res shouldEqual HttpResponse(200, entity = "ok")
           .withHeaders(hs)
       }
@@ -250,34 +250,38 @@ class CollectorServiceSpec extends Specification {
 
     "buildRedirectHttpResponse" in {
       val redirConf = TestUtils.testConf.redirectMacro
-      val whitelistConfig = TestUtils.testConf.whitelistConfig
+      val allowListConfig = TestUtils.testConf.allowListConfig
       "give back a 302 if redirecting and there is a u query param" in {
-        val (res, Nil) = service.buildRedirectHttpResponse(event, Map("u" -> "https://uiowa.edu"), redirConf, whitelistConfig)
+        val (res, Nil) = service.buildRedirectHttpResponse(event, Map("u" -> "https://uiowa.edu"), redirConf, allowListConfig)
         res shouldEqual HttpResponse(302).withHeaders(`RawHeader`("Location", "https://uiowa.edu"))
       }
-      "give back a 404 if redirecting to a domain not on the whitelist even though uiowa.edu is in the URL params" in {
-        val (res, Nil) = service.buildRedirectHttpResponse(event, Map("u" -> "https://alberhasky.com?foo=uiowa.edu"), redirConf, whitelistConfig)
+      "give back a 302 if redirecting to a domain on the allowed list" in {
+        val (res, Nil) = service.buildRedirectHttpResponse(event, Map("u" -> "https://cnn.com"), redirConf, allowListConfig)
+        res shouldEqual HttpResponse(302).withHeaders(`RawHeader`("Location", "https://cnn.com"))
+      }
+      "give back a 404 if redirecting to a domain not on the allowListConfig even though uiowa.edu is in the URL params" in {
+        val (res, Nil) = service.buildRedirectHttpResponse(event, Map("u" -> "https://alberhasky.com?foo=uiowa.edu"), redirConf, allowListConfig)
         res shouldEqual HttpResponse(404)
       }
-      "give back a 404 if redirecting to a domain not on the whitelist" in {
-        val (res, Nil) = service.buildRedirectHttpResponse(event, Map("u" -> "https://alberhasky.com"), redirConf, whitelistConfig)
+      "give back a 404 if redirecting to a domain not on the allowListConfig" in {
+        val (res, Nil) = service.buildRedirectHttpResponse(event, Map("u" -> "https://alberhasky.com"), redirConf, allowListConfig)
         res shouldEqual HttpResponse(404)
       }
       "give back a 400 if redirecting and there are no u query params" in {
-        val (res, _) = service.buildRedirectHttpResponse(event, Map.empty, redirConf, whitelistConfig)
+        val (res, _) = service.buildRedirectHttpResponse(event, Map.empty, redirConf, allowListConfig)
         res shouldEqual HttpResponse(400)
       }
       "the redirect url should ignore a cookie replacement macro on redirect if not enabled" in {
         event.networkUserId = "1234"
         val (res, Nil) = service.buildRedirectHttpResponse(
-          event, Map("u" -> s"http://localhost/?uid=$${SP_NUID}"), redirConf, whitelistConfig.copy(enabled = false))
+          event, Map("u" -> s"http://localhost/?uid=$${SP_NUID}"), redirConf, allowListConfig.copy(enabled = false))
         res shouldEqual HttpResponse(302)
           .withHeaders(`RawHeader`("Location", s"http://localhost/?uid=$${SP_NUID}"))
       }
       "the redirect url should support a cookie replacement macro on redirect if enabled" in {
         event.networkUserId = "1234"
         val (res, Nil) = service.buildRedirectHttpResponse(event,
-          Map("u" -> s"http://localhost/?uid=$${SP_NUID}"), redirConf.copy(enabled = true), whitelistConfig.copy(enabled = false))
+          Map("u" -> s"http://localhost/?uid=$${SP_NUID}"), redirConf.copy(enabled = true), allowListConfig.copy(enabled = false))
         res shouldEqual HttpResponse(302)
           .withHeaders(`RawHeader`("Location", "http://localhost/?uid=1234"))
       }
@@ -285,13 +289,13 @@ class CollectorServiceSpec extends Specification {
         event.networkUserId = "1234"
         val (res, Nil) = service.buildRedirectHttpResponse(
           event, Map("u" -> "http://localhost/?uid=[TOKEN]"),
-          redirConf.copy(enabled = true, Some("[TOKEN]")), whitelistConfig.copy(enabled = false))
+          redirConf.copy(enabled = true, Some("[TOKEN]")), allowListConfig.copy(enabled = false))
         res shouldEqual HttpResponse(302)
           .withHeaders(`RawHeader`("Location", "http://localhost/?uid=1234"))
       }
       "the redirect url should allow for double encoding for return redirects" in {
         val (res, Nil) =
-          service.buildRedirectHttpResponse(event, Map("u" -> "a%3Db"), redirConf, whitelistConfig.copy(enabled = false))
+          service.buildRedirectHttpResponse(event, Map("u" -> "a%3Db"), redirConf, allowListConfig.copy(enabled = false))
         res shouldEqual HttpResponse(302).withHeaders(`RawHeader`("Location", "a%3Db"))
       }
     }

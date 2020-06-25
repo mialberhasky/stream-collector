@@ -82,7 +82,7 @@ package model {
     enabled: Boolean,
     placeholder: Option[String]
   )
-  final case class RedirectDomainWhitelistConfig(
+  final case class RedirectDomainAllowConfig(
     enabled: Boolean,
     domains: Option[List[String]]
   )
@@ -145,22 +145,22 @@ package model {
     port: Int = 443
   )
   final case class CollectorConfig(
-    interface: String,
-    port: Int,
-    paths: Map[String, String],
-    p3p: P3PConfig,
-    crossDomain: CrossDomainConfig,
-    cookie: CookieConfig,
-    doNotTrackCookie: DoNotTrackCookieConfig,
-    cookieBounce: CookieBounceConfig,
-    redirectMacro: RedirectMacroConfig,
-    whitelistConfig: RedirectDomainWhitelistConfig,
-    rootResponse: RootResponseConfig,
-    cors: CORSConfig,
-    streams: StreamsConfig,
-    prometheusMetrics: PrometheusMetricsConfig,
-    enableDefaultRedirect: Boolean = true,
-    ssl: SSLConfig = SSLConfig()
+                                    interface: String,
+                                    port: Int,
+                                    paths: Map[String, String],
+                                    p3p: P3PConfig,
+                                    crossDomain: CrossDomainConfig,
+                                    cookie: CookieConfig,
+                                    doNotTrackCookie: DoNotTrackCookieConfig,
+                                    cookieBounce: CookieBounceConfig,
+                                    redirectMacro: RedirectMacroConfig,
+                                    allowListConfig: RedirectDomainAllowConfig,
+                                    rootResponse: RootResponseConfig,
+                                    cors: CORSConfig,
+                                    streams: StreamsConfig,
+                                    prometheusMetrics: PrometheusMetricsConfig,
+                                    enableDefaultRedirect: Boolean = true,
+                                    ssl: SSLConfig = SSLConfig()
   ) {
     val cookieConfig = if (cookie.enabled) Some(cookie) else None
     val doNotTrackHttpCookie =

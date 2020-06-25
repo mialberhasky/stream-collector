@@ -140,7 +140,7 @@ class CollectorService(
       )
 
     val (httpResponse, badRedirectResponses) = buildHttpResponse(
-      event, queryParams, headers.toList, redirect, pixelExpected, bounce, config.redirectMacro, config.whitelistConfig)
+      event, queryParams, headers.toList, redirect, pixelExpected, bounce, config.redirectMacro, config.allowListConfig)
     (httpResponse, badRedirectResponses ++ sinkResponses)
   }
 
@@ -244,10 +244,10 @@ class CollectorService(
     pixelExpected: Boolean,
     bounce: Boolean,
     redirectMacroConfig: RedirectMacroConfig,
-    whitelistConfig: RedirectDomainWhitelistConfig
+    allowListConfig: RedirectDomainAllowConfig
   ): (HttpResponse, List[Array[Byte]]) =
     if (redirect) {
-      val (r, l) = buildRedirectHttpResponse(event, queryParams, redirectMacroConfig, whitelistConfig)
+      val (r, l) = buildRedirectHttpResponse(event, queryParams, redirectMacroConfig, allowListConfig)
       (r.withHeaders(r.headers ++ headers), l)
     } else {
       (buildUsualHttpResponse(pixelExpected, bounce).withHeaders(headers), Nil)
@@ -269,7 +269,7 @@ class CollectorService(
     event: CollectorPayload,
     queryParams: Map[String, String],
     redirectMacroConfig: RedirectMacroConfig,
-    whitelistConfig: RedirectDomainWhitelistConfig
+    allowListConfig: RedirectDomainAllowConfig
   ): (HttpResponse, List[Array[Byte]]) =
     queryParams.get("u") match {
       case Some(target) =>
@@ -278,7 +278,7 @@ class CollectorService(
         val replacedTarget =
           if (canReplace) target.replaceAllLiterally(token, event.networkUserId)
           else target
-        if (validDomain(replacedTarget,  whitelistConfig)) {
+        if (validDomain(replacedTarget,  allowListConfig)) {
           (HttpResponse(StatusCodes.Found).withHeaders(`RawHeader`("Location", replacedTarget)), Nil)
         } else {
           log.info("Returned 404 for: " + replacedTarget)
@@ -288,15 +288,15 @@ class CollectorService(
       case None => (HttpResponse(StatusCodes.BadRequest), Nil)
     }
 
-  def validDomain(host: String, whitelistConfig: RedirectDomainWhitelistConfig): Boolean = {
+  def validDomain(host: String, allowListConfig: RedirectDomainAllowConfig): Boolean = {
     var found = true
-    if (whitelistConfig.enabled) {
+    if (allowListConfig.enabled) {
       found = false
-      val domain = host.toLowerCase().replaceAll("^(http[s]?://)([\\w\\.\\-]+)(/?[\\S\\s#]*$)", "'$2'")
+      val domain = host.toLowerCase().replaceAll("^(http[s]?://)([\\w\\.\\-]+)(/?[\\S\\s#]*$)", "$2")
       if (domain.contains("uiowa.edu")) found = true
       if (!found) {
         breakable {
-          for (d <- whitelistConfig.domains.get) {
+          for (d <- allowListConfig.domains.get) {
             val du = d.toLowerCase
             found = domain.startsWith(du)
             if (found) break
